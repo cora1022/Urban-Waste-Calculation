@@ -199,6 +199,42 @@ h3 {
     margin-bottom: 18px;
 }
 
+.upload-heading-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.upload-heading-row .section-heading {
+    margin-bottom: 0;
+}
+
+.make-stats-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    border-radius: 8px;
+    background: var(--city-a);
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.make-stats-link:hover {
+    background: #1d4ed8;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+    transform: translateY(-1px);
+}
+
 .drop-zone {
     display: grid;
     place-items: center;
@@ -613,6 +649,15 @@ td:nth-child(2) {
 
     .metric-grid {
         grid-template-columns: 1fr;
+    }
+
+    .upload-heading-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .make-stats-link {
+        width: 100%;
     }
 
     .chart-box {
