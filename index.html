@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>도시 폐기물 CSV 분석 대시보드</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="analysis.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
+    <script src="analysis.js" defer></script>
+</head>
+<body>
+    <header class="hero">
+        <div class="hero-content">
+            <p class="eyebrow">도시 폐기물 통계</p>
+            <h1>도시 폐기물 분석</h1>
+            <p class="hero-copy">CSV 데이터를 도시별로 묶고, 해시맵 집계·최소 힙 Top-K·안정 정렬·가중 점수 계산·정규화 분류를 이용해 폐기물 발생량과 효율성을 비교한다.</p>
+        </div>
+    </header>
+
+    <main class="dashboard-shell">
+        <section class="notice-card">
+            <strong>분석 기준</strong>
+            <span>이 대시보드는 원본 시뮬레이터에 반영된 전국 생활폐기물 보정 기준 <b>1.2 kg/거주인/일</b>, 목표 범위 <b>1.1~1.3 kg/거주인/일</b>, 제6차 전국폐기물통계조사 생활폐기물 기준 <b>0.9506 kg/인/일</b>을 함께 사용해 통계 기반 효율성을 판단합니다.</span>
+        </section>
+
+        <section class="description-grid">
+            <article class="card">
+                <div class="section-heading">
+                    <p class="eyebrow">자료구조</p>
+                    <h2>자료구조·알고리즘 적용</h2>
+                </div>
+                <ul class="feature-list">
+                    <li>해시맵으로 도시별·시설유형별 데이터를 묶어서 집계했다.</li>
+                    <li>최소 힙 Top-K 방식으로 폐기물 발생량이 큰 항목을 뽑았다.</li>
+                    <li>안정 정렬을 사용해 같은 값이 있을 때도 표 순서가 흔들리지 않게 했다.</li>
+                    <li>가중 점수 계산으로 폐기물량, 재활용 비율, 보관 가능일을 함께 반영했다.</li>
+                    <li>선형 누적 합과 정규화로 도시 규모가 달라도 비교할 수 있게 했다.</li>
+                </ul>
+            </article>
+
+            <article class="card">
+                <div class="section-heading">
+                    <p class="eyebrow">통계 기준</p>
+                    <h2>통계 기반 분석 장점</h2>
+                </div>
+                <ul class="feature-list">
+                    <li>전국 생활폐기물 기준과 제6차 전국폐기물통계조사 조성비를 같이 사용했다.</li>
+                    <li>거주인구뿐 아니라 종사인구와 유동인구를 넣어 도시 활동량을 보정했다.</li>
+                    <li>주거, 상업, 학교, 산업·공장, 의료, 건설 시설의 특성을 따로 반영했다.</li>
+                    <li>총폐기물, 생활폐기물, 재활용가능자원, 특수폐기물을 함께 비교할 수 있게 했다.</li>
+                    <li>임시보관 가능일과 재활용 비율까지 보면서 효율성을 판단할 수 있다.</li>
+                </ul>
+            </article>
+        </section>
+
+        <section id="error-panel" class="error-panel" hidden></section>
+
+        <section class="control-grid single-control">
+            <div class="card upload-card">
+                <div class="section-heading">
+                    <p class="eyebrow">파일 업로드</p>
+                    <h2>시뮬레이션 결과 CSV 업로드</h2>
+                </div>
+                <label id="drop-zone" class="drop-zone" for="csv-file">
+                    <input id="csv-file" type="file" accept=".csv,text/csv">
+                    <span class="upload-icon">CSV</span>
+                    <strong>파일을 끌어오거나 선택하세요</strong>
+                    <small>urban_comparison_stats_타임스탬프.csv 파일을 권장합니다.</small>
+                </label>
+                <div id="file-status" class="file-status">아직 선택된 파일이 없습니다.</div>
+            </div>
+
+            <div class="card standard-card">
+                <div class="section-heading">
+                    <p class="eyebrow">기준값</p>
+                    <h2>시뮬레이터 통계 기준</h2>
+                </div>
+                <div class="standard-value">1.2 <span>kg/거주인/일</span></div>
+                <p class="benchmark-description">원본 소스의 `municipalPerCapitaKg` 기준입니다. 실제 통계 기준을 시뮬레이션 총폐기물 구조에 맞게 보정한 값이며, 1.1 미만은 효율적, 1.1~1.3은 보통, 1.3 초과는 비효율적으로 판정합니다.</p>
+            </div>
+        </section>
+
+        <section id="results" class="results" hidden>
+            <section class="summary-strip">
+                <div>
+                    <span>분석 행 수</span>
+                    <strong id="row-count">0개</strong>
+                </div>
+                <div>
+                    <span>시뮬레이션 기준값</span>
+                    <strong id="selected-benchmark">1.2 kg/거주인/일</strong>
+                </div>
+                <div>
+                    <span>도시 수</span>
+                    <strong id="city-count">0개</strong>
+                </div>
+            </section>
+
+            <section id="kpi-grid" class="kpi-grid"></section>
+
+            <section class="card interpretation-card">
+                <div class="section-heading">
+                    <p class="eyebrow">요약</p>
+                    <h2>자동 해석 요약</h2>
+                </div>
+                <div id="interpretation" class="interpretation"></div>
+            </section>
+
+            <section class="card diagnostic-card">
+                <div class="section-heading">
+                    <p class="eyebrow">진단</p>
+                    <h2>세부 비효율 진단</h2>
+                </div>
+                <div id="diagnostic-grid" class="diagnostic-grid"></div>
+            </section>
+
+            <section class="chart-grid">
+                <article class="card chart-card">
+                    <h3>도시별 총폐기물 비교</h3>
+                    <div class="chart-box"><canvas id="totalWasteChart"></canvas></div>
+                </article>
+                <article class="card chart-card">
+                    <h3>도시별 1인당 폐기물 비교</h3>
+                    <div class="chart-box"><canvas id="perCapitaChart"></canvas></div>
+                </article>
+                <article class="card chart-card wide">
+                    <h3>생활·특수 폐기물 대분류 구성비</h3>
+                    <div class="chart-box"><canvas id="categoryChart"></canvas></div>
+                </article>
+                <article class="card chart-card">
+                    <h3>세부 폐기물 품목 구성</h3>
+                    <div class="chart-box"><canvas id="detailDonutChart"></canvas></div>
+                </article>
+                <article class="card chart-card wide">
+                    <h3>시설 유형별 폐기물 발생량</h3>
+                    <div class="chart-box"><canvas id="typeWasteChart"></canvas></div>
+                </article>
+                <article class="card chart-card">
+                    <h3>거주인구 기준과 유효인구 기준 비교</h3>
+                    <div class="chart-box"><canvas id="populationBasisChart"></canvas></div>
+                </article>
+                <article class="card chart-card">
+                    <h3>도시별 시뮬레이션 효율 점수</h3>
+                    <div class="chart-box"><canvas id="scoreChart"></canvas></div>
+                </article>
+                <article class="card chart-card">
+                    <h3>거주·종사·유동 인구 구성</h3>
+                    <div class="chart-box"><canvas id="populationMixChart"></canvas></div>
+                </article>
+                <article class="card chart-card">
+                    <h3>핵심 폐기물 비율 비교</h3>
+                    <div class="chart-box"><canvas id="wasteRatioChart"></canvas></div>
+                </article>
+                <article class="card chart-card">
+                    <h3>임시보관 가능일 비교</h3>
+                    <div class="chart-box"><canvas id="storageChart"></canvas></div>
+                </article>
+            </section>
+
+            <section class="card table-card">
+                <div class="section-heading">
+                    <p class="eyebrow">유형별 통계</p>
+                    <h2>유형별 분석 테이블</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>도시</th>
+                                <th>유형</th>
+                                <th>시설 수</th>
+                                <th>총폐기물</th>
+                                <th>거주인구</th>
+                                <th>종사인구</th>
+                                <th>유동인구</th>
+                                <th>총폐기물 비중</th>
+                            </tr>
+                        </thead>
+                        <tbody id="type-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+    </main>
+</body>
+</html>
